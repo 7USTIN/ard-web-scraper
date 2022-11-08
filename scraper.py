@@ -41,19 +41,22 @@ def get_video_titles():
     for rubric_title in rubric_titles:
         output[rubric_title.text] = []
 
-    for rubric_index, rubric in enumerate(rubrics):
+    for rubric in rubrics:
+        results = []
+
         try:
             videos = rubric.find_elements(By.CSS_SELECTOR, ".swiper-slide")
-            
-            for video_index, video in enumerate(videos):
-                img = video.find_element(By.CSS_SELECTOR, "img")
-                img_alt = img.get_attribute("alt")
 
-                print(rubric_index, video_index, img_alt)
+            for video in videos:
+                video_title = video.find_element(By.CSS_SELECTOR, "img").get_attribute("alt")
+
+                results.append(video_title)
         except:
             pass
+        
+        print(results)
 
-    print(output, len(output), len(rubrics))
+    print(output, len(output), len(rubrics), len(rubric_titles))
 
 if __name__ == "__main__":
     set_up()
