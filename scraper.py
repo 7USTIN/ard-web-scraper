@@ -20,9 +20,11 @@ def set_up():
     browser.set_window_size(scroll_width, scroll_height)
     ActionChains(browser).scroll_by_amount(0, scroll_height).perform()
 
+    browser.implicitly_wait(3)
+
 def take_screenshots():
-    website_content = browser.find_element(By.CSS_SELECTOR, "body > div > div")
-    website_content.screenshot("./screenshots/full-page.png")
+    page_content = browser.find_element(By.CSS_SELECTOR, "body > div > div")
+    page_content.screenshot("./screenshots/full-page.png")
 
     stage_content = browser.find_elements(By.CSS_SELECTOR, "div > div > a > div > img")
     next_button = browser.find_element(By.CSS_SELECTOR, ".swiper-button-next")
@@ -32,14 +34,26 @@ def take_screenshots():
         next_button.click()
 
 def get_video_titles():
-    output = {}
-    rubric_titles = browser.find_elements(By.CSS_SELECTOR, "section > span > h2")
-    rubrics = browser.find_elements(By.CSS_SELECTOR, ".swiper-wrapper > .swiper-slide")
+    output = { "Stage": [] }
+    rubric_titles = browser.find_elements(By.CSS_SELECTOR, "section h2")
+    rubrics = browser.find_elements(By.CSS_SELECTOR, ".swiper-wrapper")
 
     for rubric_title in rubric_titles:
         output[rubric_title.text] = []
 
-    print(output)
+    for rubric_index, rubric in enumerate(rubrics):
+        try:
+            videos = rubric.find_elements(By.CSS_SELECTOR, ".swiper-slide")
+            
+            for video_index, video in enumerate(videos):
+                img = video.find_element(By.CSS_SELECTOR, "img")
+                img_alt = img.get_attribute("alt")
+
+                print(rubric_index, video_index, img_alt)
+        except:
+            pass
+
+    print(output, len(output), len(rubrics))
 
 if __name__ == "__main__":
     set_up()
