@@ -39,9 +39,9 @@ def take_screenshot():
     browser.set_window_size(scroll_width, scroll_height)
     print("Adjusted window size")
 
-    print("\nWaiting for the page to load...")
+    print("\nWaiting 10 seconds for the page to load...")
     
-    sleep(5)
+    sleep(10)
 
     print("\nTaking screenshot...")
     
