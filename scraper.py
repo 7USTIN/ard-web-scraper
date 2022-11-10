@@ -1,102 +1,120 @@
-import os, csv
+import os, csv, json
 from time import sleep
+from urllib.request import urlopen, urlretrieve
+from itertools import zip_longest
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 
-url = "https://www.ardmediathek.de/"
-chromedriver_path="/Users/justin/Downloads/chromedriver"
-screenshots_path="./screenshots"
-csv_file_path="./ard.csv"
+ard_url = "https://www.ardmediathek.de/"
+ard_api = "https://api.ardmediathek.de/page-gateway/pages/ard/editorial/mainstreamer-webpwa-nichtaendern"
+teaser_image_size = "1000" # size in px
 
-def set_up():
+images_dir="./images"
+chromedriver_exec="./chromedriver"
+csv_file_name="ard.csv"
+
+def delete_prev_images():
+    print("\nEmptying image folder...")
+
+    for file in os.scandir(images_dir):
+        os.remove(file.path)
+
+def take_screenshot():
     print("\nSetting up the browser...")
 
     options = Options()
     options.headless = True
 
-    serivce = Service(chromedriver_path)
+    serivce = Service(chromedriver_exec)
 
-    global browser
     browser = webdriver.Chrome(options=options, service=serivce)
-    browser.get(url)
-    print("Opened '{}'".format(url))
+    browser.get(ard_url)
+    print("Opened '{}'".format(ard_url))
 
     scroll_width = browser.execute_script("return document.body.parentNode.scrollWidth")
     scroll_height = browser.execute_script("return document.body.parentNode.scrollHeight")
     browser.set_window_size(scroll_width, scroll_height)
     print("Adjusted window size")
 
-def take_screenshots():
-    print("\nDeleting previous screenshots...")
-
-    for file in os.scandir(screenshots_path):
-        os.remove(file.path)
-
-    print("\nTaking screenshots...")
-
+    print("\nWaiting for the page to load...")
+    
     sleep(5)
+
+    print("\nTaking screenshot...")
     
     page_content = browser.find_element(By.CSS_SELECTOR, "body > div > div")
-    page_content.screenshot("{}/full-page.png".format(screenshots_path))
-    print("Saved screenshot 'full-page.png'")
+    page_content.screenshot("{}/page.png".format(images_dir))
+    print("Saved as 'page.png'")
 
-    stage_content = browser.find_elements(By.CSS_SELECTOR, "div > div > a > div > img")
-    next_button = browser.find_element(By.CSS_SELECTOR, ".swiper-button-next")
+    browser.quit()
 
-    for index, stage_img in enumerate(stage_content):
-        stage_img.screenshot("{}/{}-stage.png".format(screenshots_path, index + 1))
-        print("Saved screenshot '{}-stage.png'".format(index + 1))
+def fetch_ard_api():
+    print("\nFetching ARD api...")
 
-        next_button.click()
-        sleep(1)
+    with urlopen(ard_api) as url:
+        global api_res
+        api_res = json.loads(url.read())
 
-def get_video_titles():
-    print("\nFetching video titles...")
+def download_stage_teasers():
+    print("\nDownloading stage teasers...")
+
+    teasers = api_res["widgets"][0]["teasers"]
+
+    for teaser in teasers:
+        teaser_src = teaser["images"]["aspect16x9"]["src"]
+        img_url = teaser_src.replace("{width}", teaser_image_size)
+
+        teaser_title = teaser["longTitle"].lower().strip().replace(" ", "_")
+        file_name = "{}.png".format(teaser_title)
+
+        urlretrieve(img_url, "{}/{}".format(images_dir, file_name))
+        print("Saved as '{}'".format(file_name))
+
+def get_titles():
+    print("\nFetching rubric and video titles...")
 
     global rubric_titles
     rubric_titles = []
+    rubric_filter = ["Menü", "Rubriken", "Unsere Region"]
 
     global video_titles
     video_titles = []
 
-    rubric_title_elements = browser.find_elements(By.CSS_SELECTOR, "section h2")
-    rubric_elements = browser.find_elements(By.CSS_SELECTOR, ".swiper-wrapper")
+    for rubric in api_res["widgets"]:
+        rubric_title = rubric["links"]["self"]["title"]
+        rubric_video_titles = []
 
-    for rubric_title in rubric_title_elements:
-        rubric_titles.append(rubric_title.text)
+        if rubric_title in rubric_filter:
+            continue
 
-    for rubric in rubric_elements:
-        results = []
+        rubric_titles.append(rubric_title)
 
-        try:
-            videos = rubric.find_elements(By.CSS_SELECTOR, ".swiper-slide")
-
-            for video in videos:
-                video_title = video.find_element(By.CSS_SELECTOR, "img").get_attribute("alt")
-
-                results.append(video_title)
-        except:
-            pass
+        for video in rubric["teasers"]:
+            rubric_video_titles.append(video["longTitle"])
         
-        video_titles.append(results)
+        video_titles.append(rubric_video_titles)
 
-def write_to_csv_file():
-    print("\nWriting to CSV file...")
+def write_csv_file():
+    print("\nWriting data to CSV file...")
 
-    with open(csv_file_path, "w+", newline="") as csv_file:
+    video_title_columns = zip_longest(*video_titles, fillvalue="")
+
+    with open("./{}".format(csv_file_name), "w+", newline="") as csv_file:
         writer = csv.writer(csv_file)
 
         writer.writerow(rubric_titles)
-        writer.writerows(video_titles)
+        writer.writerows(video_title_columns)
 
-    print(rubric_titles, "\n", video_titles)
+    print("Saved as '{}'".format(csv_file_name))
+        
 
 if __name__ == "__main__":
-    set_up()
-    take_screenshots()
-    get_video_titles()
-    write_to_csv_file()
-
-    browser.quit()
+    delete_prev_images()
+    take_screenshot()
+    fetch_ard_api()
+    download_stage_teasers()
+    get_titles()
+    write_csv_file()
