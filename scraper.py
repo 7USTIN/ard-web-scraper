@@ -12,7 +12,7 @@ ard_url = "https://www.ardmediathek.de/"
 ard_api = "https://api.ardmediathek.de/page-gateway/pages/ard/editorial/mainstreamer-webpwa-nichtaendern"
 teaser_image_size = "1000" # size in px
 
-output_dir = sys.argv[1]
+output_dir = "/app/data"
 images_dir = f"{output_dir}/images"
 chromedriver_exec = "./chromedriver"
 csv_file_name = "ard-mediathek.csv"
@@ -37,6 +37,8 @@ def take_screenshot():
 
     options = Options()
     options.headless = True
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
 
     serivce = Service(chromedriver_exec)
 
