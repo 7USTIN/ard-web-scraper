@@ -1,4 +1,4 @@
-import os, csv, json
+import os, sys, csv, json
 from time import sleep
 from urllib.request import urlopen, urlretrieve
 from itertools import zip_longest
@@ -12,12 +12,22 @@ ard_url = "https://www.ardmediathek.de/"
 ard_api = "https://api.ardmediathek.de/page-gateway/pages/ard/editorial/mainstreamer-webpwa-nichtaendern"
 teaser_image_size = "1000" # size in px
 
-images_dir="./images"
-chromedriver_exec="./chromedriver"
-csv_file_name="ard.csv"
+output_dir = sys.argv[1]
+images_dir = f"{output_dir}/images"
+chromedriver_exec = "./chromedriver"
+csv_file_name = "ard-mediathek.csv"
+
+def check_output_dir():
+    print(f"\nChecking if '{images_dir}' exists...")
+
+    try:
+        os.makedirs(f"{images_dir}")
+        print(f"Created '{images_dir}'")
+    except FileExistsError:
+        print(f"'{images_dir}' already exists")
 
 def delete_prev_images():
-    print("\nEmptying image folder...")
+    print("\nEmptying image directory...")
 
     for file in os.scandir(images_dir):
         os.remove(file.path)
@@ -32,7 +42,7 @@ def take_screenshot():
 
     browser = webdriver.Chrome(options=options, service=serivce)
     browser.get(ard_url)
-    print("Opened '{}'".format(ard_url))
+    print(f"Opened '{ard_url}'")
 
     scroll_width = browser.execute_script("return document.body.parentNode.scrollWidth")
     scroll_height = browser.execute_script("return document.body.parentNode.scrollHeight")
@@ -46,7 +56,7 @@ def take_screenshot():
     print("\nTaking screenshot...")
     
     page_content = browser.find_element(By.CSS_SELECTOR, "body > div > div")
-    page_content.screenshot("{}/page.png".format(images_dir))
+    page_content.screenshot(f"{images_dir}/page.png")
     print("Saved as 'page.png'")
 
     browser.quit()
@@ -68,10 +78,10 @@ def download_stage_teasers():
         img_url = teaser_src.replace("{width}", teaser_image_size)
 
         teaser_title = teaser["longTitle"].lower().strip().replace(" ", "_")
-        file_name = "{}.png".format(teaser_title)
+        file_name = f"{teaser_title}.png"
 
-        urlretrieve(img_url, "{}/{}".format(images_dir, file_name))
-        print("Saved as '{}'".format(file_name))
+        urlretrieve(img_url, f"{images_dir}/{file_name}")
+        print(f"Saved as '{file_name}'")
 
 def get_titles():
     print("\nFetching rubric and video titles...")
@@ -102,16 +112,16 @@ def write_csv_file():
 
     video_title_columns = zip_longest(*video_titles, fillvalue="")
 
-    with open("./{}".format(csv_file_name), "w+", newline="") as csv_file:
+    with open(f"{output_dir}/{csv_file_name}", "w+", newline="") as csv_file:
         writer = csv.writer(csv_file)
 
         writer.writerow(rubric_titles)
         writer.writerows(video_title_columns)
 
-    print("Saved as '{}'".format(csv_file_name))
-        
+    print(f"Saved as '{csv_file_name}'")
 
 if __name__ == "__main__":
+    check_output_dir()
     delete_prev_images()
     take_screenshot()
     fetch_ard_api()
